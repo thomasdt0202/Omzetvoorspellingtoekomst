@@ -1,1 +1,581 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Museum Ops Cloud</title>
+    
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Roboto+Mono:wght@500;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Round" rel="stylesheet">
+
+    <style>
+        :root {
+            --bg-app: #F5F7FA;
+            --surface: #FFFFFF;
+            --primary: #0F172A;
+            --accent: #6366F1; /* Indigo */
+            --border: #E2E8F0;
+            --text-main: #1E293B;
+            --text-muted: #64748B;
+            
+            --success: #10B981; --success-bg: #D1FAE5;
+            --warning: #F59E0B; --warning-bg: #FEF3C7;
+            --danger: #EF4444; --danger-bg: #FEE2E2;
+        }
+
+        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+        
+        body {
+            font-family: 'Inter', sans-serif; background-color: var(--bg-app); color: var(--text-main);
+            margin: 0; padding-bottom: 100px; font-size: 16px;
+        }
+
+        /* HEADER */
+        header {
+            background: var(--surface); padding: 16px 20px; position: sticky; top: 0; z-index: 50;
+            border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center;
+        }
+        .brand { font-weight: 800; font-size: 1.1rem; display: flex; align-items: center; gap: 8px; color: var(--primary); }
+        .sync-status { font-size: 0.75rem; font-weight: 600; padding: 4px 12px; border-radius: 99px; background: var(--bg-app); color: var(--text-muted); display:flex; align-items:center; gap:5px;}
+        .dot { width: 8px; height: 8px; border-radius: 50%; background: #ccc; }
+        .dot.online { background: var(--success); box-shadow: 0 0 8px var(--success); }
+        .dot.busy { background: var(--warning); animation: pulse 1s infinite; }
+
+        @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.5; } 100% { opacity: 1; } }
+
+        /* LAYOUT */
+        .container { max-width: 768px; margin: 0 auto; padding: 20px 16px; }
+        .tab-content { display: none; animation: slideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1); }
+        .tab-content.active { display: block; }
+        @keyframes slideUp { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+        /* CARDS */
+        .card { background: var(--surface); border-radius: 16px; padding: 24px; margin-bottom: 16px; border: 1px solid var(--border); box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
+        .card-title { font-weight: 700; font-size: 1rem; color: var(--primary); margin-bottom: 15px; display: flex; align-items: center; gap: 8px; }
+
+        /* HERO METRICS */
+        .fc-val { font-family: 'Roboto Mono', monospace; font-size: 2.8rem; font-weight: 800; color: var(--primary); line-height: 1; margin: 10px 0; letter-spacing: -1px; }
+        .fc-badge { display: inline-block; padding: 6px 12px; border-radius: 8px; font-weight: 700; font-size: 0.8rem; }
+
+        /* INPUTS */
+        .input-group { margin-bottom: 20px; }
+        label { display: block; font-size: 0.75rem; font-weight: 700; text-transform: uppercase; color: var(--text-muted); margin-bottom: 8px; letter-spacing: 0.5px; }
+        input, select { width: 100%; padding: 14px; border-radius: 12px; border: 2px solid var(--border); font-size: 1rem; font-family: 'Inter', sans-serif; background: #FAFAFA; transition: 0.2s; }
+        input:focus { outline: none; border-color: var(--accent); background: white; }
+
+        /* WEATHER SELECTOR */
+        .weather-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+        .w-item { text-align: center; padding: 12px 0; border: 2px solid var(--border); border-radius: 12px; cursor: pointer; background: white; transition: 0.2s; }
+        .w-item.active { border-color: var(--accent); background: #EEF2FF; color: var(--accent); }
+        .w-icon { font-size: 1.5rem; display: block; margin-bottom: 4px; }
+        .w-lbl { font-size: 0.65rem; font-weight: 700; text-transform: uppercase; }
+
+        /* CALENDAR */
+        .cal-controls { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
+        .cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; }
+        .cal-head { text-align: center; font-size: 0.7rem; font-weight: 700; color: var(--text-muted); padding-bottom: 5px; }
+        .cal-day { aspect-ratio: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; border-radius: 8px; font-size: 0.9rem; font-weight: 600; cursor: pointer; position: relative; border: 1px solid transparent; }
+        .cal-day.today { border-color: var(--primary); }
+        
+        /* Performance Colors */
+        .perf-low { background: var(--success-bg); color: var(--success); }
+        .perf-med { background: #E0F2FE; color: #0284C7; }
+        .perf-high { background: var(--warning-bg); color: var(--warning); }
+        .perf-peak { background: var(--danger-bg); color: var(--danger); }
+        
+        .dot { width: 5px; height: 5px; border-radius: 50%; margin-top: 4px; }
+
+        /* ROSTER */
+        .roster-row { display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 1px solid var(--border); }
+        .roster-row:last-child { border-bottom: none; }
+        .r-count { background: var(--primary); color: white; width: 28px; height: 28px; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 0.9rem; }
+
+        /* BUTTONS */
+        .btn { width: 100%; padding: 14px; background: var(--primary); color: white; border: none; border-radius: 12px; font-weight: 700; font-size: 1rem; cursor: pointer; }
+        .btn-outline { background: transparent; border: 2px solid var(--border); color: var(--text-main); }
+
+        /* NAV */
+        .nav-bar { position: fixed; bottom: 0; width: 100%; background: var(--surface); border-top: 1px solid var(--border); display: flex; padding-bottom: env(safe-area-inset-bottom); z-index: 99; }
+        .nav-item { flex: 1; text-align: center; padding: 12px 0; cursor: pointer; color: var(--text-muted); }
+        .nav-item.active { color: var(--accent); }
+
+        /* MODAL */
+        .modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 200; justify-content: center; align-items: center; padding: 20px; backdrop-filter: blur(2px); }
+        .modal.open { display: flex; }
+        .modal-content { background: white; width: 100%; max-width: 380px; border-radius: 20px; padding: 24px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); animation: pop 0.2s ease-out; }
+        @keyframes pop { from { transform: scale(0.95); opacity:0; } to { transform: scale(1); opacity:1; } }
+
+    </style>
+</head>
+<body>
+
+<header>
+    <div class="brand">
+        <span class="material-icons-round" style="color:var(--accent);">cloud_sync</span>
+        Museum Ops
+    </div>
+    <div class="sync-status" id="sync-badge">
+        <div class="dot" id="sync-dot"></div>
+        <span id="sync-text">Offline</span>
+    </div>
+</header>
+
+<div class="container">
+
+    <div id="tab-live" class="tab-content active">
+        <div class="card" style="text-align:center;">
+            <div style="font-size:0.75rem; font-weight:800; color:var(--text-muted); letter-spacing:1px; text-transform:uppercase;">Verwachte Eindstand</div>
+            <div class="fc-val" id="fc-result">€ 0</div>
+            <div class="fc-badge" id="fc-badge" style="background:#eee;">Laden...</div>
+            
+            <div style="margin-top:20px; display:flex; gap:10px;">
+                <div style="flex:1; background:#F8FAFC; padding:10px; border-radius:10px;">
+                    <div style="font-size:0.65rem; font-weight:700; color:var(--text-muted);">NU</div>
+                    <div style="font-weight:700; font-size:1.1rem;" id="disp-curr">€ 0</div>
+                </div>
+                <div style="flex:1; background:#F8FAFC; padding:10px; border-radius:10px;">
+                    <div style="font-size:0.65rem; font-weight:700; color:var(--text-muted);">NOG TE GAAN</div>
+                    <div style="font-weight:700; font-size:1.1rem; color:var(--accent);" id="disp-rem">€ 0</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-title"><span class="material-icons-round">tune</span> Input</div>
+            <div class="input-group">
+                <label>Tijdstip & Omzet</label>
+                <div style="display:flex; gap:10px;">
+                    <input type="time" id="inp-time">
+                    <input type="number" id="inp-rev" placeholder="€" inputmode="numeric">
+                </div>
+            </div>
+            <div class="input-group">
+                <label>Weer</label>
+                <div class="weather-grid">
+                    <div class="w-item" onclick="setWeather('sunny')" data-w="sunny"><span class="w-icon">☀️</span><span class="w-lbl">Strand</span></div>
+                    <div class="w-item active" onclick="setWeather('cloudy')" data-w="cloudy"><span class="w-icon">☁️</span><span class="w-lbl">Museum</span></div>
+                    <div class="w-item" onclick="setWeather('rain')" data-w="rain"><span class="w-icon">☔</span><span class="w-lbl">Regen</span></div>
+                    <div class="w-item" onclick="setWeather('ice')" data-w="ice"><span class="w-icon">❄️</span><span class="w-lbl">Glad</span></div>
+                </div>
+            </div>
+            <div style="display:flex; justify-content:space-between; align-items:center; background:var(--bg-app); padding:10px; border-radius:8px;">
+                <label style="margin:0; cursor:pointer;" for="inp-bb">⭐ Blockbuster?</label>
+                <input type="checkbox" id="inp-bb" style="width:20px; height:20px;">
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-title">
+                <span class="material-icons-round">groups</span> Personeel
+                <span style="margin-left:auto; font-size:0.8rem; background:var(--bg-app); padding:4px 8px; border-radius:6px;" id="staff-total">0 FTE</span>
+            </div>
+            <div id="roster-list"></div>
+        </div>
+    </div>
+
+    <div id="tab-cal" class="tab-content">
+        <div class="card">
+            <div class="cal-controls">
+                <button class="btn btn-outline" style="width:auto; padding:8px 15px;" onclick="moveMonth(-1)">‹</button>
+                <div id="cal-title" style="font-weight:800;">...</div>
+                <button class="btn btn-outline" style="width:auto; padding:8px 15px;" onclick="moveMonth(1)">›</button>
+            </div>
+            <div class="cal-grid" id="cal-grid"></div>
+        </div>
+        
+        <div class="card">
+            <div class="card-title"><span class="material-icons-round">cloud</span> Cloud Sync Status</div>
+            <p style="font-size:0.85rem; color:var(--text-muted); margin-bottom:15px;">
+                Data wordt automatisch gesynchroniseerd met GitHub <code>database.json</code>.
+            </p>
+            <div style="font-size:0.8rem;" id="debug-log"></div>
+            <button class="btn" style="margin-top:10px;" onclick="syncNow()">Nu Synchroniseren</button>
+        </div>
+    </div>
+
+    <div id="tab-settings" class="tab-content">
+        <div class="card">
+            <div class="card-title">☁️ GitHub Koppeling</div>
+            <p style="font-size:0.8rem; color:var(--text-muted);">
+                Vul hier je GitHub gegevens in om sync te activeren op alle apparaten.
+            </p>
+            <div class="input-group">
+                <label>GitHub Gebruikersnaam</label>
+                <input type="text" id="gh-user" placeholder="bijv. janjansen">
+            </div>
+            <div class="input-group">
+                <label>Repo Naam</label>
+                <input type="text" id="gh-repo" placeholder="bijv. museum-planner">
+            </div>
+            <div class="input-group">
+                <label>Personal Access Token</label>
+                <input type="password" id="gh-token" placeholder="ghp_...">
+            </div>
+            <button class="btn" onclick="saveCredentials()">Koppeling Opslaan</button>
+        </div>
+        
+        <div class="card">
+            <div class="card-title">Kalibratie</div>
+            <div class="input-group"><label>Doordeweeks Base (€)</label><input type="number" id="cfg-wd"></div>
+            <div class="input-group"><label>Weekend Base (€)</label><input type="number" id="cfg-we"></div>
+            <button class="btn btn-outline" onclick="saveConfig()">Opslaan</button>
+        </div>
+    </div>
+
+</div>
+
+<div class="nav-bar">
+    <div class="nav-item active" onclick="switchTab('live', this)"><span class="material-icons-round">dashboard</span><div>Live</div></div>
+    <div class="nav-item" onclick="switchTab('cal', this)"><span class="material-icons-round">calendar_month</span><div>Kalender</div></div>
+    <div class="nav-item" onclick="switchTab('settings', this)"><span class="material-icons-round">settings</span><div>Cloud</div></div>
+</div>
+
+<div id="day-modal" class="modal">
+    <div class="modal-content">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
+            <h3 id="m-date" style="margin:0;">...</h3>
+            <button onclick="closeModal()" style="border:none; background:none; font-size:1.5rem; cursor:pointer;">×</button>
+        </div>
+        
+        <div id="view-hist" style="display:none;">
+            <div class="input-group">
+                <label>Gerealiseerde Omzet (€)</label>
+                <input type="number" id="m-rev">
+            </div>
+            <button class="btn" onclick="saveHistoryEntry()">Opslaan</button>
+        </div>
+
+        <div id="view-fc" style="display:none;">
+            <div style="text-align:center; margin-bottom:20px;">
+                <div style="font-size:2.5rem; font-weight:800; color:var(--primary);" id="m-fc-val">€ 0</div>
+                <div style="font-size:0.75rem; font-weight:700; color:var(--text-muted);">PROGNOSE</div>
+            </div>
+            <div id="m-fc-reasons" style="font-size:0.85rem;"></div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // --- 1. GLOBAL STATE ---
+    let STATE = {
+        history: {}, 
+        config: { wd: 3500, we: 6500 },
+        lastSha: null // GitHub API requirement
+    };
+
+    let CREDENTIALS = { user: '', repo: '', token: '' };
+    
+    // --- 2. INIT ---
+    function init() {
+        // Load Creds
+        const storedCreds = localStorage.getItem('museum_creds');
+        if(storedCreds) {
+            CREDENTIALS = JSON.parse(storedCreds);
+            document.getElementById('gh-user').value = CREDENTIALS.user;
+            document.getElementById('gh-repo').value = CREDENTIALS.repo;
+            document.getElementById('gh-token').value = CREDENTIALS.token;
+            // Try to sync
+            syncNow();
+        } else {
+            // Fallback local storage
+            const localState = localStorage.getItem('museum_local_state');
+            if(localState) STATE = JSON.parse(localState);
+            updateStatus('Local', false);
+        }
+
+        document.getElementById('cfg-wd').value = STATE.config.wd;
+        document.getElementById('cfg-we').value = STATE.config.we;
+        
+        // Set Time
+        const now = new Date();
+        document.getElementById('inp-time').value = ('0'+now.getHours()).slice(-2) + ':' + ('0'+now.getMinutes()).slice(-2);
+        
+        calculateLive();
+    }
+
+    // --- 3. GITHUB SYNC ENGINE ---
+    async function syncNow() {
+        if(!CREDENTIALS.token) return;
+        updateStatus('Syncing...', 'busy');
+
+        const url = `https://api.github.com/repos/${CREDENTIALS.user}/${CREDENTIALS.repo}/contents/database.json`;
+        
+        try {
+            // 1. GET Current Data
+            const response = await fetch(url, {
+                headers: { 'Authorization': `token ${CREDENTIALS.token}`, 'Accept': 'application/vnd.github.v3+json' }
+            });
+
+            if(response.status === 404) {
+                // File doesn't exist, try creating it
+                await uploadToGitHub({}, null);
+                return;
+            }
+
+            const data = await response.json();
+            const content = JSON.parse(decodeURIComponent(escape(atob(data.content)))); // UTF-8 decode
+            STATE.lastSha = data.sha;
+            
+            // Merge logic (Simple: GitHub wins, unless local has more keys? let's assume GitHub is master)
+            STATE.history = content.history || {};
+            STATE.config = content.config || STATE.config;
+            
+            // UI Update after sync
+            updateStatus('Online', 'online');
+            document.getElementById('cfg-wd').value = STATE.config.wd;
+            document.getElementById('cfg-we').value = STATE.config.we;
+            renderCalendar();
+            calculateLive();
+
+        } catch(e) {
+            console.error(e);
+            updateStatus('Error', false);
+            document.getElementById('debug-log').innerText = "Fout: " + e.message;
+        }
+    }
+
+    async function uploadToGitHub(newData, sha) {
+        if(!CREDENTIALS.token) {
+            // Save locally if no cloud
+            localStorage.setItem('museum_local_state', JSON.stringify(STATE));
+            return; 
+        }
+
+        const url = `https://api.github.com/repos/${CREDENTIALS.user}/${CREDENTIALS.repo}/contents/database.json`;
+        
+        const payload = {
+            message: "Update via App",
+            content: btoa(unescape(encodeURIComponent(JSON.stringify(STATE)))), // UTF-8 Encode
+            sha: sha || STATE.lastSha
+        };
+
+        try {
+            updateStatus('Saving...', 'busy');
+            const res = await fetch(url, {
+                method: 'PUT',
+                headers: { 'Authorization': `token ${CREDENTIALS.token}`, 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+            const json = await res.json();
+            STATE.lastSha = json.content.sha;
+            updateStatus('Saved', 'online');
+        } catch(e) {
+            updateStatus('Save Failed', false);
+        }
+    }
+
+    function saveCredentials() {
+        CREDENTIALS.user = document.getElementById('gh-user').value;
+        CREDENTIALS.repo = document.getElementById('gh-repo').value;
+        CREDENTIALS.token = document.getElementById('gh-token').value;
+        localStorage.setItem('museum_creds', JSON.stringify(CREDENTIALS));
+        syncNow();
+    }
+
+    function updateStatus(text, type) {
+        const txt = document.getElementById('sync-text');
+        const dot = document.getElementById('sync-dot');
+        txt.innerText = text;
+        dot.className = 'dot';
+        if(type) dot.classList.add(type);
+    }
+
+    // --- 4. CALCULATION LOGIC ---
+    let currentWeather = 'cloudy';
+    
+    function calculateLive() {
+        const timeStr = document.getElementById('inp-time').value;
+        const rev = parseFloat(document.getElementById('inp-rev').value) || 0;
+        const [h, m] = timeStr.split(':').map(Number);
+        const decTime = h + (m/60);
+        const isBB = document.getElementById('inp-bb').checked;
+
+        // Curve
+        const curve = { 10:0, 11:0.08, 12:0.25, 13:0.50, 14:0.68, 15:0.82, 16:0.93, 16.75:1 };
+        let progress = 0;
+        const times = Object.keys(curve).map(parseFloat).sort((a,b)=>a-b);
+        for(let i=0; i<times.length-1; i++) {
+            if(decTime >= times[i] && decTime <= times[i+1]) {
+                let f = (decTime - times[i]) / (times[i+1] - times[i]);
+                progress = curve[times[i]] + f * (curve[times[i+1]] - curve[times[i]]);
+            }
+        }
+        if(decTime >= 16.75) progress = 1;
+
+        // Factors
+        let wMult = 1.0;
+        if(currentWeather === 'sunny') wMult = 0.85;
+        if(currentWeather === 'cloudy') wMult = 1.05;
+        if(currentWeather === 'rain') wMult = 1.15;
+        if(currentWeather === 'ice') wMult = 0.50;
+        if(isBB) wMult *= 1.25;
+
+        // Base Forecast
+        const today = new Date();
+        const isWe = (today.getDay()===0 || today.getDay()===6);
+        let base = isWe ? STATE.config.we : STATE.config.wd;
+        
+        let forecast = 0;
+        if(progress > 0.1) {
+            let projected = rev / progress;
+            let momentum = projected / (base * wMult);
+            if(momentum > 1.3) momentum = 1.3; if(momentum < 0.7) momentum = 0.7;
+            let remaining = (base - (base*progress)) * wMult * momentum;
+            forecast = rev + remaining;
+        } else {
+            forecast = base * wMult;
+        }
+
+        forecast = Math.round(forecast);
+        
+        // UI
+        document.getElementById('fc-result').innerText = '€ ' + forecast.toLocaleString();
+        document.getElementById('disp-curr').innerText = '€ ' + rev.toLocaleString();
+        document.getElementById('disp-rem').innerText = '€ ' + Math.max(0, forecast - rev).toLocaleString();
+        
+        const badge = document.getElementById('fc-badge');
+        if(forecast > 8000) { badge.style.background="#FEE2E2"; badge.style.color="#EF4444"; badge.innerText="PIEKDRUKTE"; }
+        else if(forecast < 4000) { badge.style.background="#D1FAE5"; badge.style.color="#10B981"; badge.innerText="RUSTIG"; }
+        else { badge.style.background="#DBEAFE"; badge.style.color="#3B82F6"; badge.innerText="NORMAAL"; }
+
+        generateRoster(forecast);
+    }
+
+    function generateRoster(rev) {
+        const list = document.getElementById('roster-list');
+        list.innerHTML = '';
+        const add = (icon, t, s, c) => {
+            list.innerHTML += `<div class="roster-row"><div class="r-left"><span class="material-icons-round r-icon">${icon}</span><div><div class="r-title">${t}</div><div class="r-sub">${s}</div></div></div><div class="r-count">${c}</div></div>`;
+        };
+
+        let total = 0;
+        if(currentWeather === 'ice') {
+            add('warning', 'Noodbezetting', 'Gladheid', 3); total=3;
+        } else {
+            let k = (rev > 4500) ? 2 : 1; add('lunch_dining', 'Keuken', 'Brood/Salade', k); total+=k;
+            let b = 1; let p = (rev > 7500) ? 2 : 1; add('coffee_maker', 'Barista', 'Koffie', b); total+=b;
+            add('point_of_sale', 'Kassa', 'Entree', p); total+=p;
+            
+            if(rev < 4500) { add('cleaning_services','Logistiek','Combi',1); total+=1; }
+            else if(rev < 7000) { add('water_drop','Spoel','Vaat',1); add('dirty_lens','Vloer','Debras',1); total+=2; }
+            else { add('water_drop','Spoel','Vaat',1); add('dirty_lens','Vloer','Debras',1); add('inventory','Aanvul','Runner',1); total+=3; }
+        }
+        document.getElementById('staff-total').innerText = total + " FTE";
+    }
+
+    // --- 5. CALENDAR ---
+    let viewDate = new Date();
+    let selectedDateKey = null;
+
+    function renderCalendar() {
+        const grid = document.getElementById('cal-grid');
+        grid.innerHTML = '';
+        ['M','D','W','D','V','Z','Z'].forEach(h => grid.innerHTML+=`<div class="cal-head">${h}</div>`);
+        document.getElementById('cal-title').innerText = viewDate.toLocaleDateString('nl-NL',{month:'long', year:'numeric'});
+
+        const y = viewDate.getFullYear(); const m = viewDate.getMonth();
+        const first = new Date(y, m, 1); const last = new Date(y, m+1, 0);
+        let start = first.getDay()-1; if(start===-1) start=6;
+
+        for(let i=0; i<start; i++) grid.innerHTML+=`<div class="cal-day empty"></div>`;
+
+        const todayKey = new Date().toISOString().split('T')[0];
+
+        for(let d=1; d<=last.getDate(); d++) {
+            const dateKey = `${y}-${String(m+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+            const el = document.createElement('div');
+            el.className = 'cal-day';
+            el.innerText = d;
+            
+            if(dateKey === todayKey) el.classList.add('today');
+
+            if(STATE.history[dateKey]) {
+                const r = STATE.history[dateKey].revenue;
+                if(r>8000) el.classList.add('perf-peak');
+                else if(r>6500) el.classList.add('perf-high');
+                else if(r>4500) el.classList.add('perf-med');
+                else el.classList.add('perf-low');
+                el.innerHTML += `<div class="dot" style="background:currentColor"></div>`;
+                el.onclick = () => openModal(dateKey, true);
+            } else if (dateKey >= todayKey) {
+                el.innerHTML += `<div class="dot" style="background:#ddd"></div>`;
+                el.onclick = () => openModal(dateKey, false);
+            }
+            grid.appendChild(el);
+        }
+    }
+
+    // --- 6. MODAL & SAVE ---
+    function openModal(key, hist) {
+        selectedDateKey = key;
+        const d = new Date(key);
+        document.getElementById('day-modal').classList.add('open');
+        document.getElementById('m-date').innerText = d.toLocaleDateString('nl-NL',{weekday:'long', day:'numeric', month:'long'});
+        
+        if(hist) {
+            document.getElementById('view-hist').style.display='block';
+            document.getElementById('view-fc').style.display='none';
+            document.getElementById('m-rev').value = STATE.history[key].revenue;
+        } else {
+            document.getElementById('view-hist').style.display='none';
+            document.getElementById('view-fc').style.display='block';
+            
+            // Calc Forecast explanation
+            const isWe = (d.getDay()===0||d.getDay()===6);
+            let base = isWe ? STATE.config.we : STATE.config.wd;
+            let txt = `<div style="display:flex; justify-content:space-between; margin-bottom:5px;"><div>Basis</div><b>€ ${base}</b></div>`;
+            
+            // Season
+            const mo = d.getMonth();
+            if(mo===6||mo===7) { base*=0.85; txt+=`<div style="display:flex; justify-content:space-between; color:#ef4444;"><div>Zomer</div><b>-15%</b></div>`; }
+            
+            document.getElementById('m-fc-val').innerText = '€ ' + Math.round(base);
+            document.getElementById('m-fc-reasons').innerHTML = txt;
+        }
+    }
+
+    function saveHistoryEntry() {
+        const val = parseFloat(document.getElementById('m-rev').value);
+        if(val) {
+            STATE.history[selectedDateKey] = { revenue: val };
+            uploadToGitHub(STATE, null); // Autosync
+            closeModal();
+            renderCalendar();
+        }
+    }
+
+    function saveConfig() {
+        STATE.config.wd = parseFloat(document.getElementById('cfg-wd').value);
+        STATE.config.we = parseFloat(document.getElementById('cfg-we').value);
+        uploadToGitHub(STATE, null);
+    }
+
+    // --- UTILS ---
+    function switchTab(id, btn) {
+        document.querySelectorAll('.tab-content').forEach(t=>t.classList.remove('active'));
+        document.getElementById('tab-'+id).classList.add('active');
+        document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
+        btn.classList.add('active');
+        if(id==='cal') renderCalendar();
+    }
+    
+    function setWeather(w) {
+        currentWeather = w;
+        document.querySelectorAll('.w-item').forEach(e=>e.classList.remove('active'));
+        document.querySelector(`.w-item[data-w="${w}"]`).classList.add('active');
+        calculateLive();
+    }
+    
+    function moveMonth(d) { viewDate.setMonth(viewDate.getMonth()+d); renderCalendar(); }
+    function closeModal() { document.getElementById('day-modal').classList.remove('open'); }
+
+    // Start
+    document.getElementById('inp-rev').addEventListener('input', calculateLive);
+    document.getElementById('inp-time').addEventListener('input', calculateLive);
+    document.getElementById('inp-bb').addEventListener('change', calculateLive);
+    init();
+
+</script>
+</body>
+</html>
 
